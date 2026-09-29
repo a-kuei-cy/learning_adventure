@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>興嘉學習大冒險 V2 - 修仙冒險版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        
+        :root {
+            --primary-bg: #0f172a; /* slate-900 */
+            --panel-bg: rgba(30, 41, 59, 0.85); /* slate-800 with opacity */
+            --accent-gold: #fbbf24;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            color: #f8fafc;
+            overflow-x: hidden;
+            overscroll-behavior: none;
+        }
+
+        /* 隱藏區塊 */
+        .hidden-section { display: none !important; }
+
+        /* 面板與玻璃特效 */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 按鈕樣式 */
+        .rpg-btn {
+            background: linear-gradient(to bottom, #3b82f6, #2563eb);
+            border: 2px solid #60a5fa;
+            border-bottom-width: 4px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+        }
+        .rpg-btn:hover:not(:disabled) {
+            background: linear-gradient(to bottom, #60a5fa, #3b82f6);
+            transform: translateY(-2px);
+            border-bottom-width: 6px;
+        }
+        .rpg-btn:active:not(:disabled) {
+            transform: translateY(2px);
+            border-bottom-width: 2px;
+        }
+        .rpg-btn:disabled { filter: grayscale(100%); opacity: 0.7; cursor: not-allowed; border-bottom-width: 2px; transform: translateY(2px);}
+        
+        .rpg-btn-gold {
+            background: linear-gradient(to bottom, #f59e0b, #d97706);
+            border-color: #fde68a;
+        }
+        .rpg-btn-green {
+            background: linear-gradient(to bottom, #10b981, #059669);
+            border-color: #a7f3d0;
+        }
+        .rpg-btn-red {
+            background: linear-gradient(to bottom, #ef4444, #dc2626);
+            border-color: #fecaca;
+        }
+
+        /* 動畫 */
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 戰鬥動畫 */
+        .sprite-idle { animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        .attack-right { animation: attackRight 0.3s ease-in-out; }
+        @keyframes attackRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(40px) scale(1.1); } }
+
+        .attack-left { animation: attackLeft 0.3s ease-in-out; }
+        @keyframes attackLeft { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-40px) scale(1.1); } }
+
+        .take-damage { animation: damageFlash 0.4s; }
+        @keyframes damageFlash { 
+            0% { filter: drop-shadow(0 0 10px red); transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { filter: drop-shadow(0 0 20px red) brightness(2) contrast(2) hue-rotate(-50deg); transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { filter: none; transform: translateX(0); }
+        }
+
+        /* 傷害數字飄動 */
+        .damage-text {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: 900;
+            color: #ef4444;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            pointer-events: none;
+            animation: floatUpFade 1s ease-out forwards;
+            z-index: 50;
+        }
+        .exp-text { color: #fbbf24; }
+        @keyframes floatUpFade {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+
+        /* 血條 */
+        .hp-bar-container { width: 100%; height: 12px; background: #334155; border-radius: 6px; overflow: hidden; border: 1px solid #000; }
+        .hp-bar-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f87171); transition: width 0.3s ease-out; }
+        .exp-bar-container { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+        .exp-bar-fill { height: 100%; background: linear-gradient(90deg, #fbbf24, #fef08a); transition: width 0.3s ease-out; }
+
+        /* 選項按鈕 */
+        .quiz-option {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.2s;
+        }
+        .quiz-option:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); border-color: #60a5fa; transform: scale(1.01); }
+        .quiz-option.correct { background: rgba(16, 185, 129, 0.4) !important; border-color: #10b981 !important; box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
+        .quiz-option.wrong { background: rgba(239, 68, 68, 0.4) !important; border-color: #ef4444 !important; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+
+        /* 自訂捲軸 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
+    </style>
+</head>
+<body class="h-screen flex flex-col antialiased">
+
+    <!-- 頂部狀態列 (玩家登入後顯示) -->
+    <header id="topBar" class="hidden-section bg-slate-900/90 backdrop-blur border-b border-slate-700 p-2 text-sm md:text-base sticky top-0 z-40 shrink-0">
+        <div class="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2 font-bold text-blue-200">
+                <span class="text-2xl">🧙‍♂️</span>
+                <div>
+                    <div id="playerTitle">新手村 - 測試員</div>
+                    <div class="text-xs text-yellow-400">Lv.<span id="playerLevel">1</span></div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4 flex-grow justify-end md:justify-center">
+                <!-- 經驗條 -->
+                <div class="w-24 md:w-48 flex flex-col gap-1 hidden md:flex">
+                    <div class="flex justify-between text-xs text-yellow-200"><span>EXP</span> <span id="expText">0/100</span></div>
+                    <div class="exp-bar-container"><div id="expBar" class="exp-bar-fill" style="width: 0%;"></div></div>
+                </div>
+                <!-- 生命值 -->
+                <div class="flex items-center gap-1 text-red-400 font-bold" title="生命值">
+                    ❤️ <span id="playerHpTxt">3</span>/<span id="playerMaxHpTxt">3</span>
+                </div>
+                <!-- 護盾 -->
+                <div class="flex items-center gap-1 text-blue-300 font-bold" title="護盾">
+                    🛡️ <span id="playerShieldTxt">0</span>
+                </div>
+                <!-- 金幣 -->
+                <div class="flex items-center gap-1 text-yellow-400 font-bold" title="金幣">
+                    🪙 <span id="playerGoldTxt">0</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btnNavHub" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-white text-xs md:text-sm transition">回村莊</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <main class="flex-grow flex items-center justify-center p-4 overflow-y-auto relative z-10">
+        <div class="w-full max-w-4xl mx-auto">
+
+            <section id="screen-login" class="glass-panel rounded-2xl p-8 max-w-md mx-auto text-center fade-in">
+                <h1 class="text-4xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+                    興嘉大冒險
+                </h1>
+                <p class="text-slate-300 mb-8 flex items-center justify-center gap-2">
+                    修仙養成版 
+                    <span id="btnAdminLogin" class="cursor-pointer text-slate-500 hover:text-slate-300" title="管理員登入">⚙️</span>
+                </p>
+
+                <div class="space-y-5 text-left">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">班級 (或門派)</label>
+                        <input type="text" id="inputClass" placeholder="例如：五年一班" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">冒險者姓名</label>
+                        <input type="text" id="inputName" placeholder="請輸入姓名" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition">
+                    </div>
+                    <button id="btnLogin" class="w-full rpg-btn py-3 rounded-lg text-lg font-bold mt-4 shadow-lg shadow-blue-500/30">
+                        踏入仙途 🚀
+                    </button>
+                </div>
+            </section>
+
+            <section id="screen-hub" class="hidden-section fade-in">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl md:text-5xl font-black text-white mb-2" style="text-shadow: 0 4px 10px rgba(0,0,0,0.8);">冒險者村莊</h2>
+                    <p class="text-slate-300">選擇你的下一步，勇者。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- 出發冒險 -->
+                    <div class="glass-panel rounded-xl p-6 text-center hover:scale-105 transition cursor-pointer group" onclick="app.showScreen('map')">
+                        <div class="text-6xl mb-4 group-hover:animate-bounce">🗺️</div>
+                        <h3 class="text-2xl font-bold text-emerald-400 mb-2">出發冒險</h3>
+                        <p class="text-sm text-slate-400">探索知識秘境，挑戰魔物獲取經驗與寶物。</p>
+                    </div>
+                    
+                    <!-- 道具商店 -->
+                    <div class="glass-panel rounded-xl p-6 text-center hover:scale-105 transition cursor-pointer group" onclick="app.showScreen('shop')">
+                        <div class="text-6xl mb-4 group-hover:animate-pulse">🏪</div>
+                        <h3 class="text-2xl font-bold text-yellow-400 mb-2">道具商店</h3>
+                        <p class="text-sm text-slate-400">花費金幣購買藥水與護盾，確保探險安全。</p>
+                    </div>
+
+                    <!-- 榮譽榜 -->
+                    <div class="glass-panel rounded-xl p-6 text-center hover:scale-105 transition cursor-pointer group" onclick="app.showScreen('leaderboard')">
+                        <div class="text-6xl mb-4 group-hover:-translate-y-2 transition">🏆</div>
+                        <h3 class="text-2xl font-bold text-blue-400 mb-2">全對榮譽榜</h3>
+                        <p class="text-sm text-slate-400">查看各路高手的完美通關紀錄。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-map" class="hidden-section fade-in">
+                <div class="glass-panel rounded-2xl p-6 max-w-2xl mx-auto">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                        <h2 class="text-2xl font-bold flex items-center gap-2">🗺️ 選擇冒險區域</h2>
+                        <button onclick="app.showScreen('hub')" class="text-slate-400 hover:text-white">返回</button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-slate-300 mb-2 font-medium">📜 選擇秘境 (科目)</label>
+                            <select id="selectSubject" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-emerald-400"></select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-2 font-medium">⚔️ 選擇關卡 (單元)</label>
+                            <div id="unitList" class="grid grid-cols-1 gap-3 max-h-[40vh] overflow-y-auto pr-2">
+                                <!-- 單元按鈕由 JS 生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-shop" class="hidden-section fade-in">
+                <div class="glass-panel rounded-2xl p-6 max-w-2xl mx-auto">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                        <h2 class="text-2xl font-bold flex items-center gap-2">🏪 哥布林商店</h2>
+                        <button onclick="app.showScreen('hub')" class="text-slate-400 hover:text-white">返回</button>
+                    </div>
+                    
+                    <div class="text-center mb-6 p-4 bg-slate-800 rounded-lg flex justify-between items-center">
+                        <span>你的錢包：</span>
+                        <span class="text-2xl font-bold text-yellow-400">🪙 <span id="shopGold">0</span></span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- 藥水 -->
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-600 flex flex-col items-center text-center">
+                            <div class="text-5xl mb-2">🧪</div>
+                            <h3 class="font-bold text-red-400 text-lg">生命藥水</h3>
+                            <p class="text-xs text-slate-400 mb-4 h-8">恢復 1 點生命值。(不能超過上限)</p>
+                            <button onclick="app.buyItem('hp', 50)" class="w-full rpg-btn-gold py-2 rounded font-bold flex justify-center items-center gap-1">
+                                <span>50 🪙</span> 購買
+                            </button>
+                        </div>
+                        <!-- 護盾 -->
+                        <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-600 flex flex-col items-center text-center">
+                            <div class="text-5xl mb-2">🛡️</div>
+                            <h3 class="font-bold text-blue-400 text-lg">守護結界</h3>
+                            <p class="text-xs text-slate-400 mb-4 h-8">獲得 1 層護盾，可抵擋一次答錯傷害。</p>
+                            <button onclick="app.buyItem('shield', 100)" class="w-full rpg-btn-gold py-2 rounded font-bold flex justify-center items-center gap-1">
+                                <span>100 🪙</span> 購買
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-battle" class="hidden-section fade-in h-full flex flex-col justify-between max-w-3xl mx-auto">
+                <!-- 戰場區域 (精靈與血條) -->
+                <div class="glass-panel rounded-2xl p-4 mb-4 relative overflow-hidden h-48 md:h-64 flex justify-between items-end border-t-4 border-t-emerald-500 shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
+                    <!-- 背景特效 -->
+                    <div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(circle at 50% 50%, #ffffff 0%, transparent 60%);"></div>
+                    
+                    <!-- 玩家側 -->
+                    <div class="relative z-10 flex flex-col items-center w-1/3">
+                        <div id="battleCombo" class="absolute -top-10 text-orange-400 font-black text-xl md:text-2xl opacity-0 transition-opacity whitespace-nowrap drop-shadow-md">🔥 1 連擊</div>
+                        <div id="playerSprite" class="text-6xl md:text-8xl sprite-idle drop-shadow-2xl">🧙‍♂️</div>
+                        <div class="mt-2 w-full max-w-[120px] bg-slate-900 rounded-full h-2 border border-slate-600">
+                            <div id="battlePlayerHp" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <!-- VS -->
+                    <div class="text-4xl md:text-6xl font-black text-slate-700/50 italic mb-10 pointer-events-none">VS</div>
+
+                    <!-- 怪物側 -->
+                    <div class="relative z-10 flex flex-col items-center w-1/3">
+                        <div class="absolute -top-16 text-center w-full whitespace-nowrap">
+                            <div id="enemyName" class="text-xs md:text-sm font-bold text-red-300 mb-1">知識小怪</div>
+                            <div class="w-full max-w-[150px] mx-auto bg-slate-900 rounded-full h-3 border border-slate-600 hidden" id="bossHpContainer">
+                                <div id="bossHpBar" class="hp-bar-fill rounded-full" style="width: 100%"></div>
+                            </div>
+                            <div id="stageProgress" class="text-xs text-slate-400">進度 1/5</div>
+                        </div>
+                        <div id="enemySprite" class="text-6xl md:text-8xl sprite-idle drop-shadow-2xl transform scale-x-[-1]">🐺</div>
+                    </div>
+                </div>
+
+                <!-- 題目區域 -->
+                <div class="glass-panel rounded-2xl p-6 flex-grow flex flex-col relative">
+                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg border border-blue-400">
+                        第 <span id="qCurrent">1</span> 題
+                    </div>
+                    
+                    <div class="flex-grow flex items-center justify-center min-h-[100px] mb-6 mt-2">
+                        <h3 id="questionText" class="text-xl md:text-2xl font-bold text-center leading-relaxed text-white">載入題目中...</h3>
+                    </div>
+                    
+                    <div id="optionsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mt-auto">
+                        <!-- 選項按鈕 -->
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-result" class="hidden-section fade-in">
+                <div class="glass-panel rounded-2xl p-8 max-w-lg mx-auto text-center border-t-4" id="resultPanel">
+                    <div id="resultIcon" class="text-7xl mb-4 animate-bounce">🏆</div>
+                    <h2 id="resultTitle" class="text-4xl font-black mb-2">戰鬥勝利！</h2>
+                    <p id="resultMsg" class="text-slate-300 mb-6">你成功淨化了這個區域。</p>
+                    
+                    <div class="bg-slate-900/80 rounded-xl p-6 mb-6 inline-block text-left border border-slate-700 w-full shadow-inner">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center p-2 bg-slate-800 rounded">
+                                <div class="text-slate-400 text-sm">獲得經驗</div>
+                                <div class="text-xl font-bold text-yellow-400">+<span id="resExp">0</span> ⭐</div>
+                            </div>
+                            <div class="text-center p-2 bg-slate-800 rounded">
+                                <div class="text-slate-400 text-sm">獲得金幣</div>
+                                <div class="text-xl font-bold text-yellow-500">+<span id="resGold">0</span> 🪙</div>
+                            </div>
+                            <div class="text-center p-2 bg-slate-800 rounded col-span-2">
+                                <div class="text-slate-400 text-sm">答對題數</div>
+                                <div class="text-lg font-bold text-emerald-400"><span id="resCorrect">0</span> / <span id="resTotal">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="perfectNotice" class="hidden text-yellow-400 font-bold mb-6 p-2 border border-yellow-500/50 bg-yellow-500/10 rounded animate-pulse">
+                        🎉 完美通關！已自動登錄至全對榮譽榜！
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="app.showScreen('map')" class="w-full rpg-btn py-3 rounded-lg font-bold">繼續冒險 🗺️</button>
+                        <button onclick="app.showScreen('hub')" class="w-full bg-slate-700 hover:bg-slate-600 py-3 rounded-lg font-bold transition">回村莊</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-leaderboard" class="hidden-section fade-in">
+                <div class="glass-panel rounded-2xl p-6 max-w-3xl mx-auto h-[80vh] flex flex-col">
+                    <div class="flex justify-between items-center mb-6 shrink-0 border-b border-slate-700 pb-4">
+                        <h2 class="text-2xl font-bold flex items-center gap-2">🏆 全對榮譽榜</h2>
+                        <button onclick="app.showScreen('hub')" class="text-slate-400 hover:text-white">返回</button>
+                    </div>
+
+                    <div class="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+                        <div id="lbEmpty" class="text-center text-slate-500 py-10 hidden">尚無英雄紀錄。</div>
+                        <table id="lbTable" class="w-full text-left border-collapse hidden">
+                            <thead class="bg-slate-800 text-slate-300 text-sm sticky top-0 z-10 shadow">
+                                <tr>
+                                    <th class="p-3 rounded-tl-lg">英雄</th>
+                                    <th class="p-3 hidden md:table-cell">秘境 (科目)</th>
+                                    <th class="p-3">關卡 (單元)</th>
+                                    <th class="p-3 text-right rounded-tr-lg">日期</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lbBody" class="divide-y divide-slate-700/50 text-sm">
+                                <!-- JS 生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="screen-admin" class="hidden-section fade-in">
+                <div class="glass-panel rounded-2xl p-6 max-w-4xl mx-auto h-[85vh] flex flex-col border-t-4 border-purple-500">
+                    <div class="flex justify-between items-center mb-6 shrink-0 border-b border-slate-700 pb-4">
+                        <h2 class="text-2xl font-bold text-purple-400">⚙️ 造物主後台 (管理員)</h2>
+                        <button onclick="app.logoutAdmin()" class="text-slate-400 hover:text-white bg-slate-800 px-3 py-1 rounded">登出後台</button>
+                    </div>
+
+                    <div class="flex-grow overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+                        <!-- 資料匯入匯出 -->
+                        <div class="bg-slate-800 p-4 rounded-xl border border-slate-600">
+                            <h3 class="font-bold text-lg mb-4 text-emerald-300 border-b border-slate-700 pb-2">📦 資料庫管理</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-slate-400 mb-2">匯入自訂題庫 (JSON 格式)</p>
+                                    <input type="file" id="importJson" accept=".json" class="block w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                                </div>
+                                <div class="flex flex-wrap gap-2 items-end">
+                                    <button onclick="app.downloadJsonTemplate()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-sm transition">下載 JSON 範例</button>
+                                    <button onclick="app.exportRecordsCSV()" class="bg-emerald-700 hover:bg-emerald-600 px-3 py-2 rounded text-sm transition" title="包含榮譽榜與所有通關紀錄">匯出結算紀錄 (CSV)</button>
+                                    <button onclick="app.resetDatabase()" class="bg-red-900/50 hover:bg-red-800 px-3 py-2 rounded text-sm text-red-300 transition">重置題庫</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 題庫檢視 (唯讀展示) -->
+                        <div class="bg-slate-800 p-4 rounded-xl border border-slate-600">
+                            <h3 class="font-bold text-lg mb-4 text-blue-300 border-b border-slate-700 pb-2">📚 當前題庫結構預覽</h3>
+                            <div id="adminDbTree" class="text-sm text-slate-300 space-y-2 bg-slate-900 p-4 rounded font-mono overflow-auto max-h-60">
+                                <!-- JS 生成樹狀結構 -->
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">* 如需新增或修改題目，請下載 JSON 範例，編輯後重新匯入。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- 浮動訊息 (Toast) 容器 -->
+    <div id="toastContainer" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        /**
+         * 興嘉學習大冒險 V2 - 修仙RPG版 核心邏輯
+         */
+
+        // --- 預設題庫 (擴充 RPG 主題感) ---
+        const DEFAULT_DB = {
+            "📜 語文秘境 (國語)": {
+                "第一層：字音字形之森": [
+                    { "q": "下列哪個字音是錯誤的？", "o": ["「骨」骼 (ㄍㄨˇ)", "「塑」膠 (ㄙㄨˋ)", "「滑」稽 (ㄏㄨㄚˊ)", "「絢」麗 (ㄒㄩㄢˋ)"], "a": "「滑」稽 (ㄏㄨㄚˊ)" },
+                    { "q": "請選出沒有錯別字的詞語：", "o": ["按步就班", "名列前矛", "不可思議", "再接再勵"], "a": "不可思議" },
+                    { "q": "「忐忑不安」的注音是？", "o": ["ㄊㄢˇ ㄊㄜˋ", "ㄕㄤˋ ㄒㄧㄚˋ", "ㄒㄧㄣ ㄏㄨㄤ", "ㄐㄧㄥ ㄎㄨㄥˇ"], "a": "ㄊㄢˇ ㄊㄜˋ" }
+                ],
+                "第二層：成語幻境 (Boss關)": [
+                    { "q": "形容做事有始有終，決不半途而廢，可以用哪個成語？", "o": ["半途而廢", "堅持不懈", "見異思遷", "朝三暮四"], "a": "堅持不懈" },
+                    { "q": "「比喻事物極為稀少珍貴」是哪個成語的意思？", "o": ["鳳毛麟角", "車載斗量", "汗牛充棟", "多如牛毛"], "a": "鳳毛麟角" },
+                    { "q": "他做事總是____，難怪經常出錯。", "o": ["小心翼翼", "粗心大意", "精打細算", "全神貫注"], "a": "粗心大意" }
+                ]
+            },
+            "🧮 算術山谷 (數學)": {
+                "第一層：四則運算陣": [
+                    { "q": "258 + 347 = ?", "o": ["595", "605", "615", "505"], "a": "605" },
+                    { "q": "802 - 195 = ?", "o": ["607", "617", "707", "597"], "a": "607" },
+                    { "q": "小明有 500 枚金幣，買了 280 枚的護盾，還剩多少？", "o": ["220", "320", "280", "200"], "a": "220" }
+                ],
+                "第二層：乘除惡龍 (Boss關)": [
+                    { "q": "12 × 5 = ?", "o": ["50", "60", "70", "17"], "a": "60" },
+                    { "q": "48 ÷ 6 = ?", "o": ["6", "7", "8", "9"], "a": "8" },
+                    { "q": "把 35 顆魔石平分給 5 個人，每人得幾顆？", "o": ["5", "6", "7", "8"], "a": "7" }
+                ]
+            },
+            "🌿 萬物森林 (自然)": {
+                "第一層：植物的呢喃": [
+                    { "q": "植物進行光合作用主要在哪個部位？", "o": ["根", "莖", "葉", "花"], "a": "葉" },
+                    { "q": "光合作用需要吸收什麼氣體？", "o": ["氧氣", "二氧化碳", "氮氣", "氫氣"], "a": "二氧化碳" },
+                    { "q": "植物的根主要功能是什麼？", "o": ["吸收水分和養分", "製造養分", "繁殖下一代", "支撐葉片"], "a": "吸收水分和養分" }
+                ]
+            }
+        };
+
+        // 預設精靈 (根據科目切換主題)
+        const THEMES = {
+            "📜 語文秘境 (國語)": { bg: "from-blue-900 to-indigo-900", monster: "👻", boss: "🐉", color: "blue" },
+            "🧮 算術山谷 (數學)": { bg: "from-amber-900 to-orange-900", monster: "🐺", boss: "👹", color: "orange" },
+            "🌿 萬物森林 (自然)": { bg: "from-emerald-900 to-green-900", monster: "🦇", boss: "🕷️", color: "emerald" },
+            "default": { bg: "from-slate-900 to-gray-900", monster: "👾", boss: "😈", color: "slate" }
+        };
+
+        // 🌟 請將部署 Google Apps Script 後獲得的網址貼在此處 🌟
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwonPW0K7qfPrUDXaGt8_KDucQv_OtTMFsPjVajfv0f09ldPVbKcBAEV54hDb2ezDEv/exec"; 
+
+        // --- STREAMING_CHUNK:App 狀態與初始化 ---
+        const app = {
+            db: {},
+            user: {
+                class: '', name: '', 
+                level: 1, exp: 0, gold: 0, 
+                hp: 3, maxHp: 3, shield: 0
+            },
+            state: {
+                subject: '', unit: '', isBoss: false,
+                questions: [], currentQIdx: 0, 
+                correctCount: 0, combo: 0, maxCombo: 0,
+                enemyHp: 0, enemyMaxHp: 0,
+                earnedExp: 0, earnedGold: 0
+            },
+            records: [], // 儲存所有遊玩紀錄 (供匯出)
+
+            init() {
+                this.loadData();
+                this.bindEvents();
+                this.showScreen('login');
+            },
+
+            loadData() {
+                // 載入題庫
+                const savedDb = localStorage.getItem('xj_rpg_db');
+                if (savedDb) {
+                    try { this.db = JSON.parse(savedDb); } 
+                    catch(e) { this.db = JSON.parse(JSON.stringify(DEFAULT_DB)); }
+                } else {
+                    this.db = JSON.parse(JSON.stringify(DEFAULT_DB));
+                    localStorage.setItem('xj_rpg_db', JSON.stringify(this.db));
+                }
+
+                // 載入使用者 (簡化版：只記住名字，不強迫密碼，實際應用應配合後端)
+                const savedUser = localStorage.getItem('xj_rpg_user');
+                if (savedUser) {
+                    try {
+                        const u = JSON.parse(savedUser);
+                        document.getElementById('inputClass').value = u.class || '';
+                        document.getElementById('inputName').value = u.name || '';
+                    } catch(e) {}
+                }
+
+                // 載入紀錄
+                const savedRecords = localStorage.getItem('xj_rpg_records');
+                if(savedRecords) {
+                    try { this.records = JSON.parse(savedRecords); } catch(e){}
+                }
+            },
+
+            saveUser() {
+                localStorage.setItem('xj_rpg_user', JSON.stringify({
+                    class: this.user.class, name: this.user.name,
+                    level: this.user.level, exp: this.user.exp, gold: this.user.gold,
+                    hp: this.user.hp, maxHp: this.user.maxHp, shield: this.user.shield
+                }));
+                this.updateHeaderUI();
+
+                // ☁️ 雲端備份 (背景執行，不影響遊戲流暢度)
+                if (GAS_API_URL) {
+                    fetch(GAS_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'saveUser', data: this.user })
+                    }).catch(e => console.log('雲端儲存失敗', e));
+                }
+            },
+
+            showScreen(id) {
+                document.querySelectorAll('section[id^="screen-"]').forEach(s => s.classList.add('hidden-section'));
+                const target = document.getElementById(`screen-${id}`);
+                target.classList.remove('hidden-section');
+                
+                // 控制頂部狀態列顯示
+                const topBar = document.getElementById('topBar');
+                if (id === 'login' || id === 'admin') {
+                    topBar.classList.add('hidden-section');
+                } else {
+                    topBar.classList.remove('hidden-section');
+                    this.updateHeaderUI();
+                }
+
+                // 特定畫面初始化
+                if (id === 'map') this.initMapUI();
+                if (id === 'shop') document.getElementById('shopGold').textContent = this.user.gold;
+                if (id === 'leaderboard') this.initLeaderboardUI();
+                if (id === 'admin') this.initAdminUI();
+            },
+
+            toast(msg, type='info') {
+                const colors = { info: 'bg-blue-600', success: 'bg-emerald-600', error: 'bg-red-600', warning: 'bg-yellow-600' };
+                const toast = document.createElement('div');
+                toast.className = `${colors[type] || colors.info} text-white px-4 py-2 rounded-lg shadow-lg text-sm font-bold fade-in`;
+                toast.textContent = msg;
+                const container = document.getElementById('toastContainer');
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.5s';
+                    setTimeout(() => toast.remove(), 500);
+                }, 2500);
+            },
+
+            // --- STREAMING_CHUNK:系統綁定與使用者管理 ---
+            bindEvents() {
+                document.getElementById('btnLogin').onclick = () => {
+                    const c = document.getElementById('inputClass').value.trim();
+                    const n = document.getElementById('inputName').value.trim();
+                    if(!c || !n) return this.toast('請輸入門派(班級)與姓名！', 'error');
+                    
+                    // 若切換帳號，重新初始化數值，若同名則讀取 (簡化邏輯)
+                    const savedUser = JSON.parse(localStorage.getItem('xj_rpg_user') || '{}');
+                    if (savedUser.class === c && savedUser.name === n) {
+                        this.user = { ...this.user, ...savedUser }; // 繼承進度
+                    } else {
+                        this.user = { class: c, name: n, level: 1, exp: 0, gold: 0, hp: 3, maxHp: 3, shield: 0 };
+                    }
+                    this.saveUser();
+                    this.showScreen('hub');
+                    this.toast(`歡迎歸來，${n} 勇者！`, 'success');
+                };
+
+                document.getElementById('btnAdminLogin').onclick = async () => {
+                    const pwd = prompt('請輸入造物主密碼');
+                    if(pwd === null || pwd.trim() === '') return;
+                    
+                    this.toast('正在與造物主通訊驗證中...', 'info');
+                    
+                    try {
+                        // 向 Google Apps Script 發送密碼驗證請求
+                        const response = await fetch(GAS_API_URL, {
+                            method: 'POST',
+                            body: JSON.stringify({ action: 'verifyAdmin', password: pwd })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            this.showScreen('admin');
+                            this.toast('密碼正確，歡迎進入造物主後台', 'success');
+                        } else {
+                            this.toast('密碼錯誤，凡人請回！', 'error');
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        this.toast('連線失敗，請檢查網路狀態', 'error');
+                    }
+                };
+
+                document.getElementById('btnNavHub').onclick = () => {
+                    if (document.getElementById('screen-battle').classList.contains('hidden-section') === false) {
+                        if(confirm('確定要逃跑嗎？將失去目前的進度與獎勵。')) this.showScreen('hub');
+                    } else {
+                        this.showScreen('hub');
+                    }
+                };
+
+                document.getElementById('selectSubject').onchange = (e) => {
+                    this.renderUnitList(e.target.value);
+                };
+            },
+
+            updateHeaderUI() {
+                document.getElementById('playerTitle').textContent = `${this.user.class} - ${this.user.name}`;
+                document.getElementById('playerLevel').textContent = this.user.level;
+                
+                const expNeeded = this.user.level * 100;
+                document.getElementById('expText').textContent = `${this.user.exp}/${expNeeded}`;
+                document.getElementById('expBar').style.width = `${Math.min(100, (this.user.exp / expNeeded) * 100)}%`;
+                
+                document.getElementById('playerHpTxt').textContent = this.user.hp;
+                document.getElementById('playerMaxHpTxt').textContent = this.user.maxHp;
+                document.getElementById('playerShieldTxt').textContent = this.user.shield;
+                document.getElementById('playerGoldTxt').textContent = this.user.gold;
+            },
+
+            addExp(amount) {
+                this.user.exp += amount;
+                let expNeeded = this.user.level * 100;
+                let leveledUp = false;
+                
+                while(this.user.exp >= expNeeded) {
+                    this.user.exp -= expNeeded;
+                    this.user.level++;
+                    this.user.maxHp++;
+                    this.user.hp = this.user.maxHp; // 升級補滿血
+                    expNeeded = this.user.level * 100;
+                    leveledUp = true;
+                }
+                if(leveledUp) {
+                    this.toast(`🎉 升級了！目前等級 Lv.${this.user.level}，生命上限提升！`, 'success');
+                }
+                this.saveUser();
+            },
+
+            buyItem(type, cost) {
+                if (this.user.gold < cost) return this.toast('金幣不足！', 'error');
+                if (type === 'hp' && this.user.hp >= this.user.maxHp) return this.toast('生命值已滿！', 'warning');
+                
+                this.user.gold -= cost;
+                if (type === 'hp') this.user.hp++;
+                if (type === 'shield') this.user.shield++;
+                
+                this.saveUser();
+                document.getElementById('shopGold').textContent = this.user.gold;
+                this.toast('購買成功！', 'success');
+            },
+
+            // --- STREAMING_CHUNK:地圖與戰鬥準備 ---
+            initMapUI() {
+                const subSelect = document.getElementById('selectSubject');
+                subSelect.innerHTML = '';
+                const subjects = Object.keys(this.db);
+                if (subjects.length === 0) {
+                    subSelect.innerHTML = '<option value="">世界崩壞，無秘境可選</option>';
+                    document.getElementById('unitList').innerHTML = '';
+                    return;
+                }
+                subjects.forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.textContent = sub;
+                    subSelect.appendChild(opt);
+                });
+                this.renderUnitList(subjects[0]);
+            },
+
+            renderUnitList(subjectName) {
+                const list = document.getElementById('unitList');
+                list.innerHTML = '';
+                const units = Object.keys(this.db[subjectName] || {});
+                if (units.length === 0) {
+                    list.innerHTML = '<div class="text-slate-500">此秘境尚未建立關卡。</div>';
+                    return;
+                }
+
+                units.forEach((unit, idx) => {
+                    // 簡單判斷是否為 Boss 關卡 (名稱包含 boss 或最後一關)
+                    const isBoss = unit.toLowerCase().includes('boss') || idx === units.length - 1;
+                    
+                    const btn = document.createElement('div');
+                    btn.className = `glass-panel p-4 rounded-xl flex justify-between items-center cursor-pointer transition hover:bg-slate-700/50 group border-l-4 ${isBoss ? 'border-red-500' : 'border-emerald-500'}`;
+                    btn.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">${isBoss ? '👹' : '⚔️'}</span>
+                            <span class="font-bold text-lg group-hover:text-white text-slate-200">${unit}</span>
+                        </div>
+                        <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold text-sm transition">挑戰</button>
+                    `;
+                    btn.onclick = () => this.startBattle(subjectName, unit, isBoss);
+                    list.appendChild(btn);
+                });
+            },
+
+            shuffle(arr) {
+                const newArr = [...arr];
+                for (let i = newArr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+                }
+                return newArr;
+            },
+
+            startBattle(subject, unit, isBoss) {
+                if (this.user.hp <= 0) return this.toast('生命值不足，請去商店購買藥水！', 'error');
+
+                const questions = this.db[subject][unit];
+                if (!questions || questions.length === 0) return this.toast('關卡無題目', 'warning');
+
+                this.state = {
+                    subject, unit, isBoss,
+                    questions: this.shuffle(JSON.parse(JSON.stringify(questions))),
+                    currentQIdx: 0, correctCount: 0, combo: 0, maxCombo: 0,
+                    enemyMaxHp: questions.length, enemyHp: questions.length,
+                    earnedExp: 0, earnedGold: 0
+                };
+
+                this.setupBattleScene();
+                this.showScreen('battle');
+                this.loadQuestion();
+            },
+
+            // --- STREAMING_CHUNK:戰鬥核心邏輯 ---
+            setupBattleScene() {
+                const theme = THEMES[this.state.subject] || THEMES['default'];
+                // 設定怪物外觀與背景
+                document.getElementById('enemySprite').textContent = this.state.isBoss ? theme.boss : theme.monster;
+                document.getElementById('enemySprite').className = `text-6xl md:text-8xl sprite-idle drop-shadow-[0_0_15px_${theme.color}] transform scale-x-[-1]`;
+                
+                const bossContainer = document.getElementById('bossHpContainer');
+                if (this.state.isBoss) {
+                    document.getElementById('enemyName').textContent = `${this.state.unit} (Boss)`;
+                    bossContainer.classList.remove('hidden');
+                    document.getElementById('stageProgress').classList.add('hidden');
+                    this.updateBossHpBar();
+                } else {
+                    document.getElementById('enemyName').textContent = `秘境守衛`;
+                    bossContainer.classList.add('hidden');
+                    document.getElementById('stageProgress').classList.remove('hidden');
+                }
+                this.updatePlayerHpBar();
+                document.getElementById('battleCombo').style.opacity = '0';
+            },
+
+            updateBossHpBar() {
+                const p = (this.state.enemyHp / this.state.enemyMaxHp) * 100;
+                document.getElementById('bossHpBar').style.width = `${p}%`;
+            },
+            
+            updatePlayerHpBar() {
+                const p = (this.user.hp / this.user.maxHp) * 100;
+                document.getElementById('battlePlayerHp').style.width = `${p}%`;
+                // 同步更新頂部
+                document.getElementById('playerHpTxt').textContent = this.user.hp;
+                document.getElementById('playerShieldTxt').textContent = this.user.shield;
+            },
+
+            loadQuestion() {
+                const qData = this.state.questions[this.state.currentQIdx];
+                document.getElementById('qCurrent').textContent = this.state.currentQIdx + 1;
+                if(!this.state.isBoss) {
+                    document.getElementById('stageProgress').textContent = `進度 ${this.state.currentQIdx + 1}/${this.state.questions.length}`;
+                }
+
+                document.getElementById('questionText').textContent = qData.q;
+                
+                const optsContainer = document.getElementById('optionsContainer');
+                optsContainer.innerHTML = '';
+                
+                const shuffledOpts = this.shuffle(qData.o);
+                shuffledOpts.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'quiz-option text-left p-4 rounded-xl font-medium text-white shadow-sm text-lg';
+                    btn.textContent = opt;
+                    btn.onclick = () => this.handleAnswer(opt, qData.a, btn, Array.from(optsContainer.children));
+                    optsContainer.appendChild(btn);
+                });
+            },
+
+            createDamageText(text, isPlayer, isExp=false) {
+                const el = document.createElement('div');
+                el.className = `damage-text ${isExp ? 'exp-text' : ''}`;
+                el.textContent = text;
+                
+                // 決定出生位置
+                const container = document.getElementById('screen-battle');
+                const targetSprite = document.getElementById(isPlayer ? 'playerSprite' : 'enemySprite');
+                const rect = targetSprite.getBoundingClientRect();
+                
+                el.style.left = `${rect.left + rect.width/2 - 20}px`;
+                el.style.top = `${rect.top}px`;
+                
+                container.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
+            },
+
+            handleAnswer(selected, correct, selectedBtn, allBtns) {
+                allBtns.forEach(b => b.disabled = true); // 鎖定作答
+                
+                const isCorrect = selected === correct;
+                const playerSprite = document.getElementById('playerSprite');
+                const enemySprite = document.getElementById('enemySprite');
+                const comboEl = document.getElementById('battleCombo');
+
+                if (isCorrect) {
+                    // --- 答對邏輯 ---
+                    selectedBtn.classList.add('correct');
+                    this.state.correctCount++;
+                    this.state.combo++;
+                    if(this.state.combo > this.state.maxCombo) this.state.maxCombo = this.state.combo;
+                    
+                    // 動畫：玩家攻擊，怪物受傷
+                    playerSprite.classList.add('attack-right');
+                    setTimeout(() => enemySprite.classList.add('take-damage'), 150);
+                    
+                    setTimeout(() => {
+                        playerSprite.classList.remove('attack-right');
+                        enemySprite.classList.remove('take-damage');
+                    }, 400);
+
+                    // 結算數值
+                    const expGain = 10 + (this.state.combo * 2);
+                    const goldGain = 5 + (this.state.isBoss ? 5 : 0);
+                    this.state.earnedExp += expGain;
+                    this.state.earnedGold += goldGain;
+                    this.state.enemyHp--;
+                    
+                    if(this.state.isBoss) this.updateBossHpBar();
+                    this.createDamageText(`-${1 + (this.state.combo>2?1:0)}`, false); // 怪物扣血
+                    setTimeout(() => this.createDamageText(`+${expGain} EXP`, true, true), 300);
+
+                    // 連擊特效
+                    if(this.state.combo > 1) {
+                        comboEl.textContent = `🔥 ${this.state.combo} 連擊!`;
+                        comboEl.style.opacity = '1';
+                        comboEl.classList.remove('animate-bounce');
+                        void comboEl.offsetWidth; // trigger reflow
+                        comboEl.classList.add('animate-bounce');
+                    }
+                } else {
+                    // --- 答錯邏輯 ---
+                    selectedBtn.classList.add('wrong');
+                    allBtns.find(b => b.textContent === correct).classList.add('correct'); // 秀正確答案
+                    this.state.combo = 0;
+                    comboEl.style.opacity = '0';
+
+                    // 動畫：怪物攻擊，玩家受傷
+                    enemySprite.classList.add('attack-left');
+                    setTimeout(() => playerSprite.classList.add('take-damage'), 150);
+                    
+                    setTimeout(() => {
+                        enemySprite.classList.remove('attack-left');
+                        playerSprite.classList.remove('take-damage');
+                    }, 400);
+
+                    // 扣血邏輯
+                    if (this.user.shield > 0) {
+                        this.user.shield--;
+                        this.createDamageText(`🛡️ 抵擋!`, true);
+                    } else {
+                        this.user.hp--;
+                        this.createDamageText(`-1 HP`, true);
+                    }
+                    this.updatePlayerHpBar();
+                }
+
+                // 檢查結束條件
+                setTimeout(() => {
+                    if (this.user.hp <= 0) {
+                        this.endBattle(false);
+                    } else if (this.state.currentQIdx === this.state.questions.length - 1 || this.state.enemyHp <= 0) {
+                        this.endBattle(true);
+                    } else {
+                        this.state.currentQIdx++;
+                        this.loadQuestion();
+                    }
+                }, 1200); // 延遲讓玩家看動畫與答案
+            },
+
+            // --- STREAMING_CHUNK:結算與記錄 ---
+            endBattle(isWin) {
+                // 如果是 Boss 戰且沒打死，算失敗
+                if (this.state.isBoss && this.state.enemyHp > 0 && this.user.hp > 0) {
+                     isWin = false; // 雖然沒死但題庫用完沒打死Boss
+                }
+
+                const totalQ = this.state.questions.length;
+                const isPerfect = (this.state.correctCount === totalQ);
+                
+                // UI 處理
+                document.getElementById('resultTitle').textContent = isWin ? '戰鬥勝利！' : '戰鬥失敗...';
+                document.getElementById('resultTitle').className = `text-4xl font-black mb-2 ${isWin ? 'text-emerald-400' : 'text-red-500'}`;
+                document.getElementById('resultIcon').textContent = isWin ? (this.state.isBoss ? '👑' : '🎉') : '💀';
+                document.getElementById('resultMsg').textContent = isWin ? 
+                    `你成功通關了【${this.state.unit}】！` : 
+                    (this.user.hp <= 0 ? '生命值歸零，請回村莊休養。' : '未擊敗 Boss，請再接再厲。');
+
+                document.getElementById('resExp').textContent = this.state.earnedExp;
+                document.getElementById('resGold').textContent = this.state.earnedGold;
+                document.getElementById('resCorrect').textContent = this.state.correctCount;
+                document.getElementById('resTotal').textContent = totalQ;
+
+                if (isPerfect) {
+                    document.getElementById('perfectNotice').classList.remove('hidden');
+                    this.saveToLeaderboard();
+                } else {
+                    document.getElementById('perfectNotice').classList.add('hidden');
+                }
+
+                // 套用獎勵並存檔
+                this.addExp(this.state.earnedExp);
+                this.user.gold += this.state.earnedGold;
+                this.saveUser();
+
+                // 儲存通關紀錄 (供匯出)
+                const recordData = {
+                    date: new Date().toLocaleString(),
+                    class: this.user.class, name: this.user.name,
+                    subject: this.state.subject, unit: this.state.unit,
+                    correct: this.state.correctCount, total: totalQ,
+                    isWin: isWin ? '是' : '否', isPerfect: isPerfect ? '是' : '否'
+                };
+                this.records.push(recordData);
+                localStorage.setItem('xj_rpg_records', JSON.stringify(this.records));
+
+                // ☁️ 雲端備份通關紀錄
+                if (GAS_API_URL) {
+                    fetch(GAS_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'saveRecord', data: recordData })
+                    }).catch(e => console.log('雲端紀錄失敗', e));
+                }
+
+                // 邊框特效
+                const panel = document.getElementById('resultPanel');
+                panel.className = `glass-panel rounded-2xl p-8 max-w-lg mx-auto text-center border-t-4 ${isWin ? 'border-emerald-500' : 'border-red-500'}`;
+
+                this.showScreen('result');
+            },
+
+            saveToLeaderboard() {
+                let lb = [];
+                try { lb = JSON.parse(localStorage.getItem('xj_rpg_lb') || '[]'); } catch(e){}
+                
+                const lbData = {
+                    class: this.user.class,
+                    name: this.user.name,
+                    subject: this.state.subject,
+                    unit: this.state.unit,
+                    date: new Date().toLocaleDateString()
+                };
+
+                // 只記錄全對，依據時間排序
+                lb.unshift(lbData);
+                
+                // 保留前 100 筆
+                if(lb.length > 100) lb.pop();
+                localStorage.setItem('xj_rpg_lb', JSON.stringify(lb));
+
+                // ☁️ 雲端備份榮譽榜
+                if (GAS_API_URL) {
+                    fetch(GAS_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'saveToLeaderboard', data: lbData })
+                    }).catch(e => console.log('雲端榮譽榜同步失敗', e));
+                }
+            },
+
+            initLeaderboardUI() {
+                let lb = [];
+                try { lb = JSON.parse(localStorage.getItem('xj_rpg_lb') || '[]'); } catch(e){}
+                
+                const tbody = document.getElementById('lbBody');
+                tbody.innerHTML = '';
+                
+                if (lb.length === 0) {
+                    document.getElementById('lbEmpty').classList.remove('hidden');
+                    document.getElementById('lbTable').classList.add('hidden');
+                } else {
+                    document.getElementById('lbEmpty').classList.add('hidden');
+                    document.getElementById('lbTable').classList.remove('hidden');
+                    
+                    lb.forEach((r, idx) => {
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-700/30 transition";
+                        let icon = '🏅';
+                        if(idx===0) icon='🥇'; if(idx===1) icon='🥈'; if(idx===2) icon='🥉';
+                        
+                        tr.innerHTML = `
+                            <td class="p-3">
+                                <div class="font-bold text-blue-300 flex items-center gap-2"><span>${icon}</span> ${r.name}</div>
+                                <div class="text-xs text-slate-400">${r.class}</div>
+                            </td>
+                            <td class="p-3 hidden md:table-cell text-emerald-300">${r.subject}</td>
+                            <td class="p-3 text-yellow-100">${r.unit}</td>
+                            <td class="p-3 text-right text-slate-400 text-xs">${r.date}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            },
+
+            // --- STREAMING_CHUNK:後台管理 ---
+            logoutAdmin() {
+                this.showScreen('login');
+            },
+
+            initAdminUI() {
+                this.renderAdminTree();
+                
+                // 綁定檔案上傳
+                const fileInput = document.getElementById('importJson');
+                fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if (typeof data === 'object') {
+                                this.db = data;
+                                localStorage.setItem('xj_rpg_db', JSON.stringify(this.db));
+                                this.renderAdminTree();
+                                this.toast('題庫匯入成功！', 'success');
+                            } else { throw new Error('格式錯誤'); }
+                        } catch(err) {
+                            this.toast('匯入失敗：JSON 格式錯誤', 'error');
+                        }
+                        fileInput.value = ''; // 允許重複選同檔案
+                    };
+                    reader.readAsText(file);
+                };
+            },
+
+            renderAdminTree() {
+                const container = document.getElementById('adminDbTree');
+                container.innerHTML = '';
+                
+                Object.keys(this.db).forEach(subject => {
+                    const subDiv = document.createElement('div');
+                    subDiv.className = 'mb-2';
+                    subDiv.innerHTML = `<div class="font-bold text-emerald-400">📁 ${subject}</div>`;
+                    
+                    const unitList = document.createElement('div');
+                    unitList.className = 'ml-6 mt-1 border-l border-slate-700 pl-4 space-y-1';
+                    
+                    Object.keys(this.db[subject]).forEach(unit => {
+                        const qCount = this.db[subject][unit].length;
+                        unitList.innerHTML += `<div class="text-slate-300 flex justify-between">
+                            <span>📄 ${unit}</span>
+                            <span class="text-slate-500 text-xs">${qCount} 題</span>
+                        </div>`;
+                    });
+                    
+                    subDiv.appendChild(unitList);
+                    container.appendChild(subDiv);
+                });
+            },
+
+            downloadJsonTemplate() {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DEFAULT_DB, null, 4));
+                const a = document.createElement('a');
+                a.href = dataStr;
+                a.download = "興嘉冒險題庫格式.json";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            },
+
+            exportRecordsCSV() {
+                if (this.records.length === 0) return this.toast('目前無通關紀錄', 'warning');
+                
+                // CSV Header
+                let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // 加上 BOM 讓 Excel 支援中文
+                csvContent += "日期時間,班級/門派,姓名,科目/秘境,單元/關卡,答對題數,總題數,是否勝利,是否完美通關\n";
+                
+                this.records.forEach(r => {
+                    const row = `"${r.date}","${r.class}","${r.name}","${r.subject}","${r.unit}",${r.correct},${r.total},${r.isWin},${r.isPerfect}`;
+                    csvContent += row + "\n";
+                });
+                
+                const a = document.createElement('a');
+                a.href = encodeURI(csvContent);
+                a.download = `冒險紀錄_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            },
+
+            resetDatabase() {
+                if(confirm('確定要將題庫還原為預設狀態嗎？所有您匯入的題目將會消失！')) {
+                    this.db = JSON.parse(JSON.stringify(DEFAULT_DB));
+                    localStorage.setItem('xj_rpg_db', JSON.stringify(this.db));
+                    this.renderAdminTree();
+                    this.toast('已重置為內建題庫', 'success');
+                }
+            }
+        };
+
+        // --- 啟動 ---
+        document.addEventListener('DOMContentLoaded', () => app.init());
+
+    </script>
+</body>
+</html>
